@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>git-nope · Guardrailed Git for Agents</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            color: #2d3748;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .nope {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        pre {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            border-left: 4px solid #3b82f6;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        .install-section {
+            background: #dbeafe;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        .command-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        .warning {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            color: #991b1b;
+        }
+        .nav {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        .nav a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>git-<span class="nope">nope</span></h1>
+        <div class="subtitle">Guardrailed Git for Agent Workflows</div>
+    </div>
+
+    <div class="content">
+        <p>git-nope is a <strong style="color: #dc2626;">safe Git wrapper</strong> designed to prevent agents and automation from accidentally destroying your repository. It's intentionally not Git – it's Git with training wheels.</p>
+
+        <div class="section-title">The Problem</div>
+        <p>Agentic coding has an unfortunate tendency to… well, <span class="nope">nope</span> your entire repository with a misplaced <code>git reset --hard</code> or <code>git checkout</code>. What started as "hey, I can go update my code!" becomes "where the hell did everything go?"</p>
+
+        <div class="section-title">The Solution</div>
+        <p>git-nope masks your real Git binary. When invoked as plain <code>git</code>, it says "<span class="nope">nope</span>" and refuses to operate. Agents get blocked from the dangerous stuff, while developers can still commit and stage changes using safe aliases.</p>
+
+        <div class="install-section">
+            <div class="section-title">Quick Install</div>
+            <div class="command-box">
+curl -O https://github.com/your-username/git-nope/releases/latest/download/git-nope
+chmod +x git-nope
+/path/to/git-nope install  # Creates symlinks in /usr/local/bin
+            </div>
+            <p>This installs aliases like <code>GitAdd</code>, <code>GitRm</code>, <code>GitCommit</code>, and optionally masks your system git.</p>
+        </div>
+
+        <div class="section-title">How It Works</div>
+        <p>git-nope uses a Rashomon strategy - one binary, many names:</p>
+        <ul>
+            <li><strong>GitAdd</strong> - Stages changes safely, no globbing</li>
+            <li><strong>GitAddAll</strong> - Adds everything in the repo (git add -A)</li>
+            <li><strong>GitAddDot</strong> - Adds current directory and below</li>
+            <li><strong>GitRm</strong> - Removes files (must specify each one)</li>
+            <li><strong>GitCommit</strong> - Creates commits with explicit message</li>
+        </ul>
+
+        <div class="section-title">Safety Features</div>
+        <ul>
+            <li><strong>No Branch Manipulation</strong> - Can't switch branches or create them</li>
+            <li><strong>No History Rewriting</strong> - No reset, rebase, or otherwise dangerous commands</li>
+            <li><strong>No Globs</strong> - GitRm requires explicit file names</li>
+            <li><strong>Explicit Operations</strong> - Everything is intentional, nothing is accidental</li>
+        </ul>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This is guardrailing, not security. If an agent can bypass PATH or run <code>/usr/bin/git</code> directly, it can skip this. To make it robust, you need to sandbox and restrict PATH for agents.
+        </div>
+
+        <div class="section-title">For Agents (LLMs)</div>
+        <p>The API is dead simple - use the alphabet soup commands:</p>
+        
+        <div class="command-box">
+# Stage all changes
+GitAddAll
+
+# Remove a couple files
+GitRm src/old_code.py tests/broken_test.py
+
+# Commit your work
+GitCommit -m "Fixed the damn thing"
+        </div>
+
+        <p>These match the convention of ReadFile, WriteFile, Glob, etc. Simple, explicit, hard to mess up.</p>
+
+        <div class="section-title">Exit Codes</div>
+        <ul>
+            <li><strong>0</strong> - Success (including deliberate git nope)</li>
+            <li><strong>42</strong> - Policy refusal (tried to use git for anything except git nope)</li>
+            <li><strong>Other non-zero</strong> - Operational failures</li>
+        </ul>
+
+        <p>Makes debugging agent workflows easy - and gives the hitchhiker's guide-philosophy of "the answer is 42, the question doesn't matter".</p>
+    </div>
+
+    <div class="nav">
+        <a href="man.html">Man Page</a>
+        <a href="installation.html">Installation</a>
+        <a href="https://github.com/your-username/git-nope">GitHub</a>
+        <a href="docs/">Documentation</a>
+    </div>
+</body>
+</html>
