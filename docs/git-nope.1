@@ -1,0 +1,346 @@
+.TH GIT-NOPE 1 "January 2026" "git-nope 0.1.0" "User Commands"
+.SH NAME
+git-nope \- Git wrapper with strong guardrails for agent workflows
+.SH SYNOPSIS
+.B git
+.RI nope
+.
+.P
+.B git-nope
+.RI [ args ... ]
+.P
+.B GitAdd
+.RI [ path ... ]
+.P
+.B GitAddAll
+.P
+.B GitAddDot
+.P
+.B GitRm
+.RI " <path> [" " <path> ...]"
+.P
+.B GitCommit
+.BR \-m " " <message>
+.SH DESCRIPTION
+.B git-nope
+is an intentionally restrictive shim around
+.BR git (1),
+designed for agent and automation workflows.
+It is not a general replacement for Git.
+It exposes only a small, explicit set of safe operations under
+\"applet\" names, and refuses to behave like full
+.BR git .
+.
+.P
+The primary goals are:
+.IP \[bu] 2
+Prevent destructive commands such as
+.BR git-reset (1),
+branch manipulation, and history rewriting from agent use.
+.IP \[bu]
+Provide a simple, explicit interface that matches other LLM-facing
+operations such as
+.BR ReadFile ,
+.BR WriteFile ,
+and
+.BR Glob .
+.IP \[bu]
+Make refusal obvious: when misused,
+.B git-nope
+prints a sentinel string and exits with a distinctive code.
+.SH INVOCATION MODEL
+.B git-nope
+selects its behaviour based on the name it is invoked as
+(\fIargv[0]\fP), similar to BusyBox-style multi-call binaries.
+.
+.SS "Invoked as git-nope"
+When invoked directly as
+.BR git-nope ,
+the program behaves as described in
+.Sx REFUSAL MODE
+unless it is explicitly extended to accept a subcommand interface.
+.
+.SS "Invoked via \"git nope\""
+If the binary is named
+.B git-nope
+and is on
+.BR PATH ,
+then running:
+.P
+.RS
+.B git nope
+.RE
+.P
+causes Git's dashed-command dispatch to execute
+.BR git-nope .
+In this mode:
+.IP \[bu] 2
+Standard output prints the sentinel string
+.BR "Nope" .
+.IP \[bu]
+The process exits with status
+.BR 0 .
+.
+.P
+This makes
+.B git nope
+an intentionally successful "do nothing" operation.
+.
+.SS "Invoked as agent applet names"
+When the program is invoked under specific names (typically via symlinks),
+it exposes a constrained set of Git operations:
+.IP \[bu] 2
+.B GitAdd
+\- stage specific paths.
+.IP \[bu]
+.B GitAddAll
+\- stage all changes in the repository, including deletions.
+.IP \[bu]
+.B GitAddDot
+\- stage the current directory and below.
+.IP \[bu]
+.B GitRm
+\- remove explicitly named files and stage the deletions.
+.IP \[bu]
+.B GitCommit
+\- create a commit with an explicit message.
+.SH REFUSAL MODE
+When invoked as
+.B git
+(for example via a symlink) with anything other than the single
+subcommand
+.BR nope ,
+.B git-nope
+refuses to behave like Git.
+.
+.P
+Specifically, for:
+.P
+.RS
+.B git
+.RI <anything>
+.RE
+.P
+the program:
+.IP \[bu] 2
+Writes a sentinel string such as
+.BR "Nope, use GitAdd, GitCommit, ..."
+listing the full set of applets, to standard output.
+.IP \[bu]
+Writes a diagnostic message to standard error describing:
+.RS
+.IP \[bu] 2
+the
+.B git-nope
+version,
+.IP \[bu]
+that full Git is masked and that it exists to block direct use of
+general
+.BR git
+commands,
+.IP \[bu]
+the allowed applet names:
+.BR GitAdd ,
+.BR GitAddAll ,
+.BR GitAddDot ,
+.BR GitRm
+and
+.BR GitCommit ,
+.IP \[bu]
+and, optionally, a pointer to the main
+.B git-nope
+repository documentation.
+.RE
+.IP \[bu]
+Exits with status
+.BR 42 .
+.
+.P
+This pattern avoids "silent" failures while remaining easy to detect
+in scripts: both the sentinel string and exit code are intentional.
+.P
+This is specifically so you can symlink the tool to
+.B git
+and add it to the agent's
+.B PATH .
+It will then tell the agent
+.RB "\"Nope, use GitAdd, GitRm, ...\""
+and direct it towards the supported applets instead of arbitrary
+.BR git
+subcommands.
+.SH COMMANDS
+.SS GitAdd
+Stage one or more paths.
+.
+.P
+Recommended semantics are equivalent to:
+.P
+.RS
+.B git add --
+.IR path ...
+.RE
+.
+.P
+Implementations MAY choose to error if no paths are provided, in order
+to force explicit use of
+.BR GitAddDot
+or
+.BR GitAddAll .
+.SS GitAddAll
+Stage all changes in the repository, including deletions.
+.
+.P
+Equivalent to:
+.P
+.RS
+.B git add -A
+.RE
+.SS GitAddDot
+Stage all changes in the current directory and below.
+.
+.P
+Equivalent to:
+.P
+.RS
+.B git add .
+.RE
+.SS GitRm
+Remove tracked files and stage the deletions.
+.
+.P
+Equivalent to:
+.P
+.RS
+.B git rm --
+.IR path ...
+.RE
+.
+.P
+Guardrails are recommended:
+.IP \[bu] 2
+Each file must be explicitly named.
+.IP \[bu]
+Arguments containing shell glob characters
+.RB ( * ,
+.BR ? ,
+.BR [ )
+SHOULD be rejected to avoid unintended mass deletions.
+.SS GitCommit
+Create a commit with an explicit message.
+.
+.P
+Typical usage:
+.P
+.RS
+.B GitCommit
+.BR \-m " \"message\""
+.RE
+.
+.P
+For agent workflows, implementations SHOULD:
+.IP \[bu] 2
+Require
+.BR \-m
+and refuse to spawn an editor.
+.IP \[bu]
+Omit advanced options (amend, reset of HEAD, etc.) to keep behaviour
+deterministic.
+.SH EXIT STATUS
+On POSIX systems, only the low 8 bits of the exit status are
+observable to the parent shell.
+.
+.P
+.B git-nope
+uses the following conventions:
+.IP 0 4
+Success.
+This includes the deliberate
+.B git nope
+case, where the user explicitly asked for "Nope".
+.IP 42
+Policy refusal: an attempt was made to use
+.B git
+for something other than
+.BR git\ nope .
+.P
+Other non-zero codes MAY be used for operational errors (such as
+\"not a Git repository\" or an underlying Git invocation failure).
+However,
+.B 42
+is reserved for policy refusal so that it remains easy to grep for.
+.SH OUTPUT
+When refusing usage as full
+.BR git ,
+the program:
+.IP \[bu] 2
+Writes
+.BR "Nope"
+to standard output.
+.IP \[bu]
+Writes a human-readable diagnostic to standard error.
+.
+.P
+When invoked as one of the applets, standard output and standard error
+follow the conventions of the underlying Git commands.
+.SH SECURITY MODEL
+.B git-nope
+is a policy-enforcement shim, not a hard security boundary.
+If an agent can execute the real
+.BR git (1)
+via an absolute path, another binary, or a different environment, it
+can bypass this wrapper.
+.
+.P
+For stronger enforcement, combine
+.B git-nope
+with:
+.IP \[bu] 2
+Restricted
+.B PATH
+settings in the agent's shell or container.
+.IP \[bu]
+Filesystem permissions or containerisation.
+.IP \[bu]
+Explicit allowlists for executable tools.
+.SH EXAMPLES
+.SS "Use git nope as a harmless sentinel"
+.P
+.RS
+.nf
+$ git nope
+Nope
+$ echo $?
+0
+.fi
+.RE
+.SS "Agent applets via symlinks"
+.P
+.RS
+.nf
+$ ln -s /opt/git-nope/bin/git-nope /opt/git-nope/bin/GitAdd
+$ ln -s /opt/git-nope/bin/git-nope /opt/git-nope/bin/GitAddAll
+$ ln -s /opt/git-nope/bin/git-nope /opt/git-nope/bin/GitAddDot
+$ ln -s /opt/git-nope/bin/git-nope /opt/git-nope/bin/GitRm
+$ ln -s /opt/git-nope/bin/git-nope /opt/git-nope/bin/GitCommit
+
+$ GitAddDot
+$ GitCommit -m "Update docs"
+.fi
+.RE
+.SS "Mask git in a constrained shell"
+.P
+.RS
+.nf
+$ ln -s /opt/git-nope/bin/git-nope /usr/local/bin/git
+
+$ git status
+Nope
+# stderr: git-nope <version> ... (full diagnostic)
+# exit status: 42
+.fi
+.RE
+.SH SEE ALSO
+.BR git (1),
+.BR git-add (1),
+.BR git-rm (1),
+.BR git-commit (1)
