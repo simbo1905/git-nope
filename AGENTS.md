@@ -10,8 +10,7 @@ Read `README.md` for project overview and links to documentation.
 
 ## Build System
 Use `make` to build the project.
-- `make help`: List build targets.
-- `make build`: Create release binaries in `dist/`.
+- Run `make help` to discover available build targets.
 
 ## Rules
 - Do not perform recursive searches unless necessary.
