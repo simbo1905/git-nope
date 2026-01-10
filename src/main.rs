@@ -17,8 +17,9 @@ fn run() -> Result<()> {
     let program_name = get_program_name(args.get(0));
 
     match program_name.as_deref() {
+        Some("GitAdd") => git_nope::applets::git_add::run(&args),
         Some("GitCommit") => git_nope::applets::git_commit::run(&args),
-        Some("GitAdd") | Some("GitAddAll") | Some("GitAddDot") | Some("GitRm") => {
+        Some("GitAddAll") | Some("GitAddDot") | Some("GitRm") => {
             println!("TODO: implement {}", program_name.unwrap());
             Ok(())
         }
