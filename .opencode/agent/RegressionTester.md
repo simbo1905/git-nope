@@ -4,7 +4,7 @@
     "RegressionTester": {
       "description": "Run the test suites defined in tests/**/*.md following the tests/**/README.md and the docs/*.md",
       "mode": "subagent",
-      "model": "copilot/gpt-5.1-codex-mini"",
+      "model": "copilot/gemini-3-flash"",
       "prompt": "Run the test suites defined in tests/**/*.md following the tests/**/README.md and the docs/*.md",
       "tools": {
         "bash": true,

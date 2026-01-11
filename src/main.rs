@@ -17,9 +17,14 @@ fn run() -> Result<()> {
     let program_name = get_program_name(args.get(0));
 
     match program_name.as_deref() {
-        Some("GitAdd") => git_nope::applets::git_add::run(&args),
-        Some("GitCommit") => git_nope::applets::git_commit::run(&args),
-        Some("GitAddAll") | Some("GitAddDot") | Some("GitRm") => {
+        Some("GitAdd") | Some("git-nope-git-add") => git_nope::applets::git_add::run(&args),
+        Some("GitCommit") | Some("git-nope-git-commit") => git_nope::applets::git_commit::run(&args),
+        Some("GitRm") | Some("git-nope-git-rm") => git_nope::applets::git_rm::run(&args),
+        Some("GitStatus") | Some("git-nope-git-status") => {
+            git_nope::applets::git_status::run(&args)
+        }
+        Some("GitLog") | Some("git-nope-git-log") => git_nope::applets::git_log::run(&args),
+        Some("GitAddAll") | Some("GitAddDot") => {
             println!("TODO: implement {}", program_name.unwrap());
             Ok(())
         }

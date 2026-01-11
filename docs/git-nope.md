@@ -42,6 +42,7 @@ It does this by:
   - GitAddDot (stage current directory subtree)
   - GitRm (remove explicit files)
   - GitCommit (commit with explicit message)
+- Refusing to traverse symbolic links, submodules, or worktrees. Agent applets operate only on regular files and directories inside the primary worktree.
 
 It also implements a deliberate novelty / sentinel command:
 - `git nope` → prints "Nope" and exits 0 (success)
