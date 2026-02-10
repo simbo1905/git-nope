@@ -18,12 +18,17 @@ fn run() -> Result<()> {
 
     match program_name.as_deref() {
         Some("GitAdd") | Some("git-nope-git-add") => git_nope::applets::git_add::run(&args),
-        Some("GitCommit") | Some("git-nope-git-commit") => git_nope::applets::git_commit::run(&args),
-        Some("GitRm") | Some("git-nope-git-rm") => git_nope::applets::git_rm::run(&args),
-        Some("GitStatus") | Some("git-nope-git-status") => {
-            git_nope::applets::git_status::run(&args)
+        Some("GitCommit") | Some("git-nope-git-commit") => {
+            git_nope::applets::git_commit::run(&args)
         }
         Some("GitLog") | Some("git-nope-git-log") => git_nope::applets::git_log::run(&args),
+        Some("GitRm") | Some("git-nope-git-rm") => git_nope::applets::git_rm::run(&args),
+        Some("GitAudit") | Some("git-nope-git-audit") => {
+            git_nope::applets::git_audit::run(&args)
+        }
+        Some("GitChanges") | Some("git-nope-git-changes") => {
+            git_nope::applets::git_changes::run(&args)
+        }
         Some("GitAddAll") | Some("GitAddDot") => {
             println!("TODO: implement {}", program_name.unwrap());
             Ok(())
@@ -74,7 +79,10 @@ fn policy_refusal(invoked_as: Option<&String>, detail: &str) {
 fn write_refusal_diagnostics(invoked_as: Option<&String>, detail: &str) -> io::Result<()> {
     let mut stderr = io::stderr();
     writeln!(stderr, "git-nope version {VERSION}")?;
-    writeln!(stderr, "Direct git usage is blocked to protect the repository.")?;
+    writeln!(
+        stderr,
+        "Direct git usage is blocked to protect the repository."
+    )?;
     writeln!(stderr, "Allowed applets:")?;
     for applet in APPLETS {
         writeln!(stderr, "  {applet}")?;

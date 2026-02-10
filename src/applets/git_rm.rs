@@ -1,125 +1,166 @@
-use anyhow::{Context, Result, bail};
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use anyhow::{anyhow, Context, Result};
+use git2::ErrorCode;
+use std::path::Path;
 
 pub fn run(args: &[String]) -> Result<()> {
     let repo = git2::Repository::discover(".").context("Failed to discover repository")?;
-    let workdir = repo.workdir().context("Repository has no working directory")?;
+    let workdir = repo
+        .workdir()
+        .context("Repository has no working directory")?;
     let mut index = repo.index().context("Failed to open repository index")?;
+    let mut any_change = false;
 
     // Skip the applet name (argv[0])
-    let patterns: Vec<&String> = args.iter().skip(1).collect();
+    let paths: Vec<&String> = args.iter().skip(1).collect();
 
-    if patterns.is_empty() {
-        println!("GitRm requires explicit paths or glob patterns.");
+    if paths.is_empty() {
+        println!("GitRm requires exactly one explicit path.");
         return Ok(());
     }
 
-    let mut paths_to_remove = HashSet::new();
+    if paths.len() > 1 {
+        println!("GitRm only accepts a single explicit path for safety.");
+        return Ok(());
+    }
 
-    for pattern_str in patterns {
-        // Treat as glob pattern
-        match glob::glob(pattern_str) {
-            Ok(entries) => {
-                for entry in entries {
-                    match entry {
-                        Ok(path) => {
-                            paths_to_remove.insert(path);
-                        }
-                        Err(e) => eprintln!("Error matching pattern '{}': {}", pattern_str, e),
-                    }
-                }
-            }
-            Err(e) => {
-                // If it's not a valid glob pattern, try it as a literal path
-                let path = Path::new(pattern_str);
-                if path.exists() {
-                    paths_to_remove.insert(path.to_path_buf());
-                } else {
-                    eprintln!("Invalid pattern or non-existent path '{}': {}", pattern_str, e);
-                }
-            }
+    let path_str = paths[0];
+
+    if path_str.contains('*') || path_str.contains('?') || path_str.contains('[') || path_str.contains(']') {
+        println!(
+            "GitRm does not accept glob patterns. Found disallowed characters in '{}'.",
+            path_str
+        );
+        return Ok(());
+    }
+
+    let path = Path::new(path_str).to_path_buf();
+
+    // Resolve absolute path
+    let abs_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(&path)
+    };
+
+    // Skip if it's the .git directory or inside it
+    if abs_path.components().any(|c| c.as_os_str() == ".git") {
+        println!("Access denied: Path is inside .git directory.");
+        return Ok(());
+    }
+
+    // Skip symlinks entirely for now
+    if let Ok(metadata) = std::fs::symlink_metadata(&abs_path) {
+        if metadata.file_type().is_symlink() {
+            println!("Skipping symlink: {}", path.display());
+            return Ok(());
         }
     }
 
-    if paths_to_remove.is_empty() {
-        bail!("No files matched the provided patterns.");
-    }
-
-    // Sort paths by length descending to handle nested structures correctly (files before parent dirs)
-    let mut sorted_paths: Vec<PathBuf> = paths_to_remove.into_iter().collect();
-    sorted_paths.sort_by(|a, b| b.as_os_str().len().cmp(&a.as_os_str().len()));
-
-    for path in sorted_paths {
-        // Resolve absolute path
-        let abs_path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            std::env::current_dir()?.join(&path)
-        };
-
-        // Skip if it's the .git directory or inside it
-        if abs_path.components().any(|c| c.as_os_str() == ".git") {
-            continue;
+    // Canonicalize to match workdir prefix safely
+    let canonical_abs = match abs_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => {
+            // If it doesn't exist, we still try to remove it from index if it's relative to workdir
+            abs_path.to_path_buf()
         }
+    };
 
-        // Skip symlinks entirely for now
-        if let Ok(metadata) = std::fs::symlink_metadata(&abs_path) {
-            if metadata.file_type().is_symlink() {
-                println!("Skipping symlink: {}", path.display());
-                continue;
-            }
-        }
-
-        // Canonicalize to match workdir prefix safely
-        // Note: canonicalize might fail if the file was already deleted by a parent directory removal
-        let canonical_abs = match abs_path.canonicalize() {
-            Ok(p) => p,
-            Err(_) => {
-                // If it doesn't exist, we still try to remove it from index if it's relative to workdir
-                abs_path.to_path_buf()
-            }
-        };
-
-        if let Ok(rel_path) = canonical_abs.strip_prefix(workdir) {
-            // Remove from disk
-            if canonical_abs.exists() {
-                if canonical_abs.is_dir() {
-                    if let Err(e) = std::fs::remove_dir_all(&canonical_abs) {
-                        eprintln!("Warning: Failed to delete directory {}: {}", canonical_abs.display(), e);
-                    } else {
-                        println!("Deleted directory: {}", rel_path.display());
-                    }
-                    // Remove from index
-                    if let Err(e) = index.remove_dir(rel_path, 0) {
-                        if e.code() != git2::ErrorCode::NotFound {
-                            eprintln!("Warning: Failed to remove directory {} from index: {}", rel_path.display(), e);
-                        }
-                    }
+    if let Ok(rel_path) = canonical_abs.strip_prefix(workdir) {
+        let rel_path = rel_path.to_path_buf();
+        // Remove from disk
+        if canonical_abs.exists() {
+            if canonical_abs.is_dir() {
+                if let Err(e) = std::fs::remove_dir_all(&canonical_abs) {
+                    eprintln!(
+                        "Warning: Failed to delete directory {}: {}",
+                        canonical_abs.display(),
+                        e
+                    );
                 } else {
-                    if let Err(e) = std::fs::remove_file(&canonical_abs) {
-                        eprintln!("Warning: Failed to delete file {}: {}", canonical_abs.display(), e);
-                    } else {
-                        println!("Deleted: {}", rel_path.display());
+                    println!("Deleted directory: {}", rel_path.display());
+                    any_change = true;
+                }
+                match index.remove_dir(rel_path.as_path(), 0) {
+                    Ok(_) => any_change = true,
+                    Err(e) if e.code() != ErrorCode::NotFound => {
+                        eprintln!(
+                            "Warning: Failed to remove directory {} from index: {}",
+                            rel_path.display(),
+                            e
+                        );
                     }
-                    // Remove from index
-                    if let Err(e) = index.remove(rel_path, 0) {
-                        if e.code() != git2::ErrorCode::NotFound {
-                            eprintln!("Warning: Failed to remove file {} from index: {}", rel_path.display(), e);
-                        }
-                    }
+                    _ => {}
                 }
             } else {
-                // Already gone from disk, just ensure it's gone from index
-                let _ = index.remove(rel_path, 0);
-                let _ = index.remove_dir(rel_path, 0);
-                println!("Removed from index: {}", rel_path.display());
+                if let Err(e) = std::fs::remove_file(&canonical_abs) {
+                    eprintln!(
+                        "Warning: Failed to delete file {}: {}",
+                        canonical_abs.display(),
+                        e
+                    );
+                } else {
+                    println!("Deleted: {}", rel_path.display());
+                    any_change = true;
+                }
+                match index.remove(rel_path.as_path(), 0) {
+                    Ok(_) => any_change = true,
+                    Err(e) if e.code() != ErrorCode::NotFound => {
+                        eprintln!(
+                            "Warning: Failed to remove file {} from index: {}",
+                            rel_path.display(),
+                            e
+                        );
+                    }
+                    _ => {}
+                }
             }
         } else {
-            eprintln!("Path is outside of repository: {}", path.display());
+            // Check if path exists in index as a file
+            let is_file_in_index = index.get_path(rel_path.as_path(), 0).is_some();
+
+            // Check if path exists in index as a directory (prefix)
+            let is_dir_in_index = index.find_prefix(rel_path.as_path()).is_ok();
+
+            if is_file_in_index {
+                if let Err(e) = index.remove(rel_path.as_path(), 0) {
+                    eprintln!(
+                        "Warning: Failed to remove file {} from index: {}",
+                        rel_path.display(),
+                        e
+                    );
+                } else {
+                    println!("Removed from index: {}", rel_path.display());
+                    any_change = true;
+                }
+            }
+
+            if is_dir_in_index {
+                if let Err(e) = index.remove_dir(rel_path.as_path(), 0) {
+                    eprintln!(
+                        "Warning: Failed to remove directory {} from index: {}",
+                        rel_path.display(),
+                        e
+                    );
+                } else {
+                    if !is_file_in_index {
+                        println!("Removed directory from index: {}", rel_path.display());
+                    }
+                    any_change = true;
+                }
+            }
+
+            if !is_file_in_index && !is_dir_in_index {
+                println!("No matching path found: {}", rel_path.display());
+            }
         }
+    } else {
+        eprintln!("Path is outside of repository: {}", path.display());
     }
 
-    index.write().context("Failed to write index to disk")?;
-    Ok(())
+    if any_change {
+        index.write().context("Failed to write index to disk")?;
+        Ok(())
+    } else {
+        Err(anyhow!("No matching paths found."))
+    }
 }

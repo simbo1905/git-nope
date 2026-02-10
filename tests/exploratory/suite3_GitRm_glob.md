@@ -1,11 +1,11 @@
-# Suite 3: GitRm Aggressive & Glob Operations
+# Suite 3: GitRm Aggressive & Explicit Path Operations
 
 ## Objective
 
-Verify that `GitRm` correctly implements the "make it gone" semantics using the `glob` crate:
+Verify that `GitRm` correctly implements the "make it gone" semantics using explicit paths:
 - Removes tracked, staged, and untracked files from disk.
 - Removes matching entries from the Git index.
-- Supports glob patterns including `**`.
+- Rejects glob patterns.
 - Skips `.git` and submodules.
 
 ## Setup
@@ -83,41 +83,79 @@ Steps:
    - `untracked.tmp` is missing from disk.
    - Index is unchanged (it wasn't tracked anyway).
 
-### Scenario 4: Glob Matching (Recursive `**`)
+### Scenario 4: Directory Removal
 
 Steps:
-1. Run `../GitRm "src/**/*.rs"`.
-2. Verify:
-   - `src/a.rs` is missing from disk and index.
-   - `src/nested/c.rs` is missing from disk and index.
-   - `src/b.txt` remains on disk and index.
-
-### Scenario 5: Directory Pattern
-
-Steps:
-1. Run `../GitRm "src/**"`.
+1. Run `../GitRm src`.
 2. Verify:
    - `src/` directory and all its contents are missing from disk.
    - All `src/` entries are removed from index.
 
-### Scenario 6: Non-existent Pattern
+### Scenario 5: Non-existent Path
 
 Steps:
 1. Run `../GitRm "no_such_file"`.
 2. Verify:
-   - Output indicates no files matched.
-   - Exit code is non-zero (or handles as per implementation - current impl prints and returns Ok but we can adjust if needed).
+   - Output indicates no files matched ("No matching paths found").
+   - Exit code is non-zero.
 
-### Scenario 7: .git Guardrail
+### Scenario 6: Glob Rejection & .git Guardrail
 
 Steps:
-1. Attempt to remove .git: `../GitRm ".git/**"`.
+1. Attempt to run with glob: `../GitRm ".git/**"`.
 2. Verify:
+   - Output states "GitRm does not accept glob patterns".
    - `.git` directory still exists and is functional.
+
+### Scenario 7: Symlink Is Skipped (No Traversal)
+
+Steps:
+1. Create a real file and a symlink to it:
+   ```bash
+   echo "target" > symlink_target.txt
+   ln -s symlink_target.txt link.txt
+   ```
+2. Run `../GitRm link.txt`.
+3. Verify:
+   - `link.txt` still exists (was skipped).
+   - `symlink_target.txt` still exists.
+   - Output includes "Skipping symlink".
+
+### Scenario 8: Submodule Path Is Skipped
+
+Steps:
+1. Create a child repository and add it as a submodule:
+   ```bash
+   mkdir -p "$TEST_DIR/child"
+   cd "$TEST_DIR/child"
+   git init
+   echo "child" > child.txt
+   git add child.txt
+   git commit -m "child init"
+   cd "$TEST_DIR/repo"
+   git submodule add "../child" submod
+   git commit -m "add submodule"
+   ```
+2. Run `../GitRm submod`.
+3. Verify:
+   - `submod/` still exists.
+   - `git status` does not show the submodule removed.
+
+### Scenario 9: Path Outside Repo Is Rejected
+
+Steps:
+1. Create a file outside the repo:
+   ```bash
+   echo "outside" > "$TEST_DIR/outside.txt"
+   ```
+2. Run `../GitRm "$TEST_DIR/outside.txt"`.
+3. Verify:
+   - Output indicates path is outside of repository.
+   - Exit code is non-zero (no changes were made).
 
 ## Success Criteria
 
 - Files are deleted from disk in all cases (tracked, staged, untracked).
 - Index is cleaned up for tracked and staged files.
-- Glob patterns work as expected (recursive `**`, wildcards).
+- Glob patterns are rejected.
 - `.git` directory is protected.

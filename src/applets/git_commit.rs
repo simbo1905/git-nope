@@ -42,7 +42,14 @@ pub fn run(args: &[String]) -> Result<()> {
         time: gix::date::Time::now_local_or_utc(),
     };
 
-    let commit_id = repo.commit_as(signature, signature, ref_name_str, &message, tree_id, parents)?;
+    let commit_id = repo.commit_as(
+        signature,
+        signature,
+        ref_name_str,
+        &message,
+        tree_id,
+        parents,
+    )?;
     println!("Created commit {commit_id}");
     Ok(())
 }

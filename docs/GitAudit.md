@@ -1,13 +1,13 @@
-# GitStatus(1) — Git-Nope Manual
+# GitAudit(1) — Git-Nope Manual
 
 ## NAME
-GitStatus — classify repository cleanliness and upstream state with color-aware summaries.
+GitAudit — classify repository cleanliness and upstream state with color-aware summaries.
 
 ## SYNOPSIS
-`GitStatus [--no-colors] [-r]`
+`GitAudit [--no-colors] [-r]`
 
 ## DESCRIPTION
-`GitStatus` reports the cleanliness of the current Git working tree using three distinct
+`GitAudit` reports the cleanliness of the current Git working tree using three distinct
 states that map onto the repository workflows adopted by `git-nope`:
 
 - **Clean** — no tracked modifications and no untracked files that escape `.gitignore`.
@@ -20,7 +20,7 @@ line summarises the relationship between the local branch and its upstream, usin
 same color vocabulary.
 
 ## CLEANLINESS STATES
-`GitStatus` evaluates repository paths via libgit2. The precedence of states is:
+`GitAudit` evaluates repository paths via libgit2. The precedence of states is:
 
 1. **Dirty** — any staged change or tracked worktree modification immediately classifies
    the repository as Dirty, even if untracked files are present.
@@ -33,7 +33,7 @@ The output includes repository identity (derived from the primary remote), curre
 branch, and tag decorations for the HEAD commit.
 
 ## REMOTE STATUS (`-r`)
-When invoked with `-r`, `GitStatus` examines the configured upstream for the current
+When invoked with `-r`, `GitAudit` examines the configured upstream for the current
 branch and emits a second line describing sync state:
 
 - **Green — UpToDate**: local and upstream point to the same commit.
@@ -56,4 +56,4 @@ precedence over the environment variable. When colors are disabled, plain text i
 - Non-zero — misuse (e.g., outside a repository) or internal errors.
 
 ## SEE ALSO
-`GitLog`, `GitRm`, `git-nope`
+`GitChanges`, `GitLog`, `GitRm`, `git-nope`

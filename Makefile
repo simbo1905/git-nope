@@ -28,7 +28,7 @@ clean:
 
 build:
 	@mkdir -p $(OUTPUT_DIR)
-	cargo build --release
+	RUSTFLAGS="-D warnings" cargo build --release
 	@# Determine SHA and Status
 	@SHA=$$(git rev-parse --short HEAD); \
 	STATUS=$$(git status --porcelain); \
@@ -45,7 +45,12 @@ build:
 		FINAL_NAME="$(BINARY_NAME)_$${SHA}_$${FILE_HASH}"; \
 		echo "Tree is dirty. Creating binary with file-hash: dist/$${FINAL_NAME}"; \
 	fi; \
-	mv target/release/$(BINARY_NAME) "$(OUTPUT_DIR)/$${FINAL_NAME}"
+	mv target/release/$(BINARY_NAME) "$(OUTPUT_DIR)/$${FINAL_NAME}"; \
+	echo "Running help for built binary:"; \
+	"$(OUTPUT_DIR)/$${FINAL_NAME}" -h || true; \
+	for applet in GitAdd GitAddAll GitAddDot GitRm GitCommit GitLog GitAudit GitChanges; do \
+		ln -sf "$${FINAL_NAME}" "$(OUTPUT_DIR)/$$applet"; \
+	done
 
 test:
 	cargo test

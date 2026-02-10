@@ -34,9 +34,30 @@ Verify GitCommit creates commits correctly when files are pre-staged.
 2. Verify: `git log --oneline` shows "Initial commit"
 3. Exit code: 0
 
+### Scenario 1b: Multiple -m Flags Join With Blank Line
+1. Stage a second file:
+   ```bash
+   echo "more" > more.txt
+   git add more.txt
+   ```
+2. Run `GitCommit -m "first" -m "second"`
+3. Verify commit message body contains:
+   - `first`
+   - blank line
+   - `second`
+   Example:
+   ```bash
+   git log -1 --pretty=%B
+   ```
+
 ### Scenario 2: Missing -m Flag
 1. Run `GitCommit`
 2. Verify: Error message about requiring `-m`
+3. Exit code: non-zero
+
+### Scenario 2b: Missing Message After -m
+1. Run `GitCommit -m`
+2. Verify: Error message about expecting message after `-m`
 3. Exit code: non-zero
 
 ### Scenario 3: Unsupported Flag
