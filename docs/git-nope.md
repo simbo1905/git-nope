@@ -4,7 +4,7 @@ A Git wrapper with strong guardrails for agent workflows. Provides only a minima
 
 ## NAME
 
-git-nope — safe Git facade for agents; only permits GitAdd, GitRm, GitAddAll, GitAddDot, GitCommit. Also provides a deliberate `git nope` subcommand that prints "Nope" and exits 0.
+git-nope — safe Git facade for agents; only permits GitAdd, GitRm, GitAddAll, GitAddDot, GitCommit, GitAudit, GitChanges. Also provides a deliberate `git nope` subcommand that prints "Nope" and exits 0.
 
 ## SYNOPSIS
 
@@ -26,6 +26,8 @@ GitRm <path> [<path>...]
 GitAddAll
 GitAddDot
 GitCommit -m <message>
+GitAudit [--no-colors] [-r]
+GitChanges
 ```
 
 `git-nope` selects its behavior based on `argv[0]` (how it was invoked), BusyBox-style.
@@ -42,6 +44,9 @@ It does this by:
   - GitAddDot (stage current directory subtree)
   - GitRm (remove explicit files)
   - GitCommit (commit with explicit message)
+  - GitAudit (classify repository cleanliness)
+  - GitChanges (list changes in porcelain format)
+- Refusing to traverse symbolic links, submodules, or worktrees. Agent applets operate only on explicit paths inside the primary worktree; glob patterns are rejected.
 
 It also implements a deliberate novelty / sentinel command:
 - `git nope` → prints "Nope" and exits 0 (success)
@@ -72,6 +77,8 @@ When argv[0] matches:
 - GitAddAll
 - GitAddDot
 - GitCommit
+- GitAudit
+- GitChanges
 
 git-nope performs that operation.
 
@@ -91,11 +98,11 @@ then:
   - stderr: empty (or minimal; up to you)
 
 Otherwise (anything other than the single-arg nope case):
-- stdout: "Nope, use GitAdd, GitCommit, ..." listing the full set of applets. 
+- stdout: "Nope, use GitAdd, GitCommit, GitAudit, GitChanges..." listing the full set of applets. 
 - stderr: diagnostic text:
   - git-nope version X.Y.Z
   - explains it is there to block direct use of general git commands.
-  - lists supported applet names (GitAdd, GitAddAll, GitAddDot, GitRm, GitCommit)
+  - lists supported applet names (GitAdd, GitAddAll, GitAddDot, GitRm, GitCommit, GitAudit, GitChanges)
   - points to the main git repo docs
 - exit: 42
 
@@ -154,6 +161,36 @@ Guardrail recommendation:
 - require `-m`
 - no editor invocation
 - no advanced options
+
+### GitAudit
+Classifies repository cleanliness and upstream state.
+
+Equivalent to a curated subset of `git status` focused on enforcement.
+
+Provides three-state classification:
+- **Clean** — no tracked modifications, no untracked files
+- **Dirty** — staged or worktree changes
+- **Tainted** — untracked (non-ignored) files present
+
+Optional `-r` flag reports upstream sync state.
+
+See `GitAudit(1)` for full documentation.
+
+### GitChanges
+Lists modified and untracked files in machine-readable format.
+
+Equivalent to:
+```
+git status --porcelain
+```
+
+Provides two-character status codes (XY) plus file path:
+- First character: index status
+- Second character: worktree status
+
+Designed for agent scripting and automation.
+
+See `GitChanges(1)` for full documentation.
 
 ## EXIT STATUS
 

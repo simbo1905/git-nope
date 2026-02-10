@@ -33,6 +33,7 @@ Whenever a new test suite is addd this table MUST be updated.
 |-------|------|-------|
 | 0 | `tests/exploratory/suite0_documentation_audit.md` | Build verification, help flags, version checks, and man page consistency. |
 | 1 | `tests/exploratory/suite1_basic_ops.md` | Basic operations: Applets, `git nope`, and Refusal Mode. |
+| 3 | `tests/exploratory/suite3_GitRm_glob.md` | GitRm aggressive deletion with glob patterns and guardrails. |
 
 ## Running a Suite
 
@@ -47,4 +48,3 @@ Whenever a new test suite is addd this table MUST be updated.
 ## Cleanup
 
 No cleanup is allowed! The amount of disk used is trivial, the user usese worktrees that are GCed on merge, so there is nothing to be added by destroying test evidence. In particular tests are not perfect and seeing a history of tests on disk across worktrees is an excellent way to track down odd bugs and regresions. So YOU MUST NOT DELETE TEST FOLDERS. 
-

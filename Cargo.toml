@@ -14,8 +14,7 @@ gix-index = "0.37"
 gix-object = "0.46"
 gix-path = "0.10"
 jwalk = "0.8"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+owo-colors = "4"
 thiserror = "1"
 
 [lib]
